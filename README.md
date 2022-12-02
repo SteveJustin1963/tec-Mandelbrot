@@ -1,1 +1,4 @@
-# tec-mandelbrot-
+# tec-mandelbrot
+
+## Ref
+- 
