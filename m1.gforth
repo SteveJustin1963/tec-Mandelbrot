@@ -42,8 +42,8 @@ variable iterations
                 iterations @ max-iterations <>
             until
             iterations @ max-iterations = if
-                "*" emit else
-                " " emit then
+                .( *)  else
+                .(  )  then
             j @ 1+ j !
         j @ width < while
         i @ 1+ i !
