@@ -1,0 +1,166 @@
+; Integer-based Mandelbrot Set for TEC-1 with 8x8 LED Matrix
+; Uses 16-bit integer arithmetic
+
+; Constants
+MATRIX_DATA     EQU 0x02  ; Port for matrix data
+MATRIX_ROW      EQU 0x03  ; Port for matrix row select
+MAX_ITERATIONS  EQU 32    ; Maximum iterations
+
+; RAM Variables
+    ORG 0x8000
+x:              DS 2    ; Current x coordinate
+y:              DS 2    ; Current y coordinate
+zr:             DS 2    ; Real part of z
+zi:             DS 2    ; Imaginary part of z
+zr2:            DS 2    ; zr^2
+zi2:            DS 2    ; zi^2
+tr:             DS 2    ; Temporary real part
+ti:             DS 2    ; Temporary imaginary part
+iterations:     DS 1    ; Iteration counter
+row_data:       DS 1    ; Current row data
+x_increment:    DS 2    ; X increment value
+y_increment:    DS 2    ; Y increment value
+
+    ORG 0x0000
+    JP main
+
+main:
+    LD HL, 30
+    LD (x_increment), HL  ; Store x increment (0.375 in 8-bit fixed point)
+    LD HL, 20
+    LD (y_increment), HL  ; Store y increment (0.25 in 8-bit fixed point)
+
+    LD HL, -120   ; x start (-1.5 in 8-bit fixed point)
+    LD (x), HL
+    LD HL, -80    ; y start (-1.0 in 8-bit fixed point)
+    LD (y), HL
+    LD B, 8        ; 8 rows
+
+row_loop:
+    PUSH BC
+    LD C, 8        ; 8 columns
+    XOR A          ; Clear A (will be used for row_data)
+    LD (row_data), A
+
+column_loop:
+    PUSH BC
+    CALL calculate_mandelbrot
+    POP BC
+    OR A
+    JR Z, pixel_off
+    LD A, (row_data)
+    SET 0, A       ; Turn pixel on
+    LD (row_data), A
+pixel_off:
+    LD A, (row_data)
+    RRCA           ; Rotate for next pixel
+    LD (row_data), A
+    LD HL, (x)
+    LD DE, (x_increment)
+    ADD HL, DE     ; Move to next x
+    LD (x), HL
+    DEC C
+    JR NZ, column_loop
+    
+    ; Display row
+    LD A, 8
+    SUB B
+    OUT (MATRIX_ROW), A  ; Select row
+    LD A, (row_data)
+    OUT (MATRIX_DATA), A ; Output row data
+    
+    ; Move to next row
+    LD HL, (y)
+    LD DE, (y_increment)
+    ADD HL, DE     ; Move to next y
+    LD (y), HL
+    LD HL, -240    ; Reset x to start (-3.0 in 8-bit fixed point)
+    LD (x), HL
+    
+    POP BC
+    DJNZ row_loop
+    
+    JP main  ; Loop forever
+
+calculate_mandelbrot:
+    LD HL, 0
+    LD (zr), HL    ; zr = 0
+    LD (zi), HL    ; zi = 0
+    LD A, MAX_ITERATIONS
+    LD (iterations), A
+
+mandelbrot_loop:
+    ; Calculate zr^2 and zi^2
+    LD HL, (zr)
+    CALL square
+    LD (zr2), HL
+    LD HL, (zi)
+    CALL square
+    LD (zi2), HL
+
+    ; Check if zr^2 + zi^2 > 4 (in 8-bit fixed point, 4 = 1024)
+    LD DE, (zr2)
+    ADD HL, DE
+    LD DE, 1024
+    OR A
+    SBC HL, DE
+    JP NC, mandelbrot_end  ; If zr^2 + zi^2 > 4, exit loop
+
+    ; Calculate 2 * zr * zi
+    LD HL, (zr)
+    LD DE, (zi)
+    CALL multiply
+    ADD HL, HL     ; Multiply by 2
+    LD (ti), HL
+
+    ; New zr = zr^2 - zi^2 + x
+    LD HL, (zr2)
+    LD DE, (zi2)
+    OR A
+    SBC HL, DE
+    LD DE, (x)
+    ADD HL, DE
+    LD (tr), HL
+
+    ; New zi = 2 * zr * zi + y
+    LD HL, (ti)
+    LD DE, (y)
+    ADD HL, DE
+    LD (zi), HL
+
+    LD HL, (tr)
+    LD (zr), HL
+
+    LD HL, iterations
+    DEC (HL)
+    JP NZ, mandelbrot_loop
+
+mandelbrot_end:
+    LD A, (iterations)
+    OR A
+    RET
+
+; 16-bit integer square (HL = HL * HL / 256)
+square:
+    LD D, H
+    LD E, L
+    CALL multiply
+    ADD HL, HL     ; Multiply by 2 for better accuracy
+    RET
+
+; 16-bit integer multiplication (HL = HL * DE / 256)
+multiply:
+    LD B, H
+    LD C, L
+    LD HL, 0
+    LD A, 16
+mult_loop:
+    ADD HL, HL
+    RL B
+    RL C
+    JR NC, mult_skip
+    ADD HL, DE
+mult_skip:
+    DEC A
+    JR NZ, mult_loop
+    RET
