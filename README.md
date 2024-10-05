@@ -1,4 +1,4 @@
-# tec-mandelbrot
+ 
 ### Mandelbrot for TEC-1 8x8 Matrix
 explanations:
 
