@@ -1,10 +1,12 @@
 
-### c code
+## c code
+- make sure the logic works
+
 ![image](https://user-images.githubusercontent.com/58069246/205287649-7251a3ef-b013-4e9d-bf3a-3ca4884316db.png)
 
-was the easiest way to do it
 
-###  mandelbot.md in MINT v1
+
+##  mandelbot in MINT 
 - outputs ASCII characters to a serial terminal, creating a visual representation of the Mandelbrot set.
 1. We define constants for the x and y ranges, step size, and loop limit.
 2. Variables `a`, `b`, and `i` are initialized.
